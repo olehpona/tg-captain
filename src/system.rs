@@ -84,7 +84,7 @@ fn get_network_info() -> String{
     let networks = Networks::new_with_refreshed_list();
     for (interface_name, data) in &networks {
         networks_stat += format!(
-            "{interface_name}: {} MB (down) / {} MB (up)\n",
+            "{interface_name}: {:.3} MB (down) / {:.3} MB (up)\n",
             (data.total_received() as f32)*0.00000095367432,
             (data.total_transmitted() as f32)*0.00000095367432,
         ).as_str();
@@ -122,7 +122,7 @@ fn get_temp_info() -> String{
     let components = Components::new_with_refreshed_list();
     let mut temps = String::new();
     for component in &components {
-        temps += format!("{component:?}").as_str();
+        temps += format!("{component:?}\n").as_str();
     }
     if temps == ""{
         return "No data".to_string();
