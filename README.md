@@ -1,13 +1,20 @@
 # Tg-captain
+
 Tg-captain is simple telgram bot created for get system info and manage your server at any point in the world with telegram.
+
 ## Plugins
+
 Tg-captain was developed for easy addition and updating of the system-based plugin. Each plugin works as a separate recipient of updates that are collected in one dispatcher. I hope that this will help to develop this platform in the future.
 For today project contains 3 plugins
+
 1. "Sys". Show stats and info about system state (Dont work properly in docker container)<br>
 2. "Transmission". Plugin for basic work with transmission rpc<br>
 3. "Docker". Plugin for working with docker (Show list of container, images, volumes, network; detail info about container; manage container state; clean space with prune command)
+
 ## Config
+
 Tg-captain parse yaml file as a config with that structure
+
 ```
 token: <Your telegram bot token>
 plugins: ["docker", "transmission", "sys"] #list of plugins that will be enabled
@@ -21,16 +28,21 @@ docker: #only used when docker plugin enabled
 transmission: #only used when transmission plugin enabled
   rpc: http://127.0.0.1:9091/transmission/rpc #path to transmission rpc. Must be like <http or https>://<url>/transmission/rpc!
 ```
+
 ## Building
+
 You can build bot only using `cargo build --release`<br> or build docker using Dockerfile in this repo `docker buildx build -t <your container tag> .`
+
 ## Running
-For running tg-captain local you must set env variable `CONFIG_PATH=<path to your config file>`.
+
+For running tg-captain local you must set command arg like this `./tg-captain <path-to-your-config>`.
 Or you can use this docker compose file example for running it
+
 ```
 version: "3"
 services:
   tg-captain:
-    image: tg-captain
+    image: <your-image-name>
     container_name: tg-captain
     network_mode: host #used host for simple setup sys ping function
     volumes:

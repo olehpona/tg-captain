@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use teloxide::prelude::*;
 use serde::Deserialize;
+use teloxide::utils::command::BotCommands;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::env;
-
 
 mod system;
 mod transmission;
@@ -36,11 +36,23 @@ struct Sys {
     ping: HashMap<String, String>,
 }
 
+#[derive(BotCommands, Clone)]
+#[command(rename_rule = "lowercase")]
+enum Command{
+    Help
+}
+
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    let config_path = env::var("CONFIG_PATH").expect("Should be path to config.yml");
-    let path = Path::new(&config_path);
+    let args: Vec<String> = env::args().collect();
+    let path: &Path;
+    if args.len() >= 2{
+        path = Path::new(&args[1]);
+    } else {
+        panic!("Please provide config file path");
+    }
+    
 
     let mut file = match File::open(&path) {
         Err(why) => panic!("couldn't open {}: {}", path.display(), why),
@@ -50,7 +62,7 @@ async fn main() {
     let mut config_data = String::new();
     match file.read_to_string(&mut config_data) {
         Err(why) => panic!("couldn't read {}: {}", path.display(), why),
-        Ok(_) => print!("{} contains:\n{}", path.display(), config_data),
+        Ok(_) => print!("Config readed sucessfully"),
     }
     let config: Config = match serde_yml::from_str(config_data.as_str()){
         Ok(config) => config,
@@ -60,6 +72,7 @@ async fn main() {
     let bot = Bot::new(config.token);
     
     let mut enabled_plugin: Vec<String> = Vec::new();
+    let mut help_text = "TG-CAPTAIN help\n\n".to_string();
     
     let mut handler = Update::filter_message();
     for plugin in config.plugins{
@@ -68,19 +81,25 @@ async fn main() {
         } else {
             if plugin == "sys"{
                 if let Some(ref sys_config) = config.sys {
-                    handler = handler.branch(system::get_sys_update_handler(sys_config.ping.clone()));
+                    handler = handler.branch(system::get_update_handler(sys_config.ping.clone()));
+                    help_text += system::get_short_help().as_str();
+                    help_text += "\n";
                 } else {
                     panic!("Sys Config is not present");
                 }
             } else if plugin == "transmission"{
                 if let Some(ref transmission_config) = config.transmission {
-                    handler = handler.branch(transmission::get_torrent_update_handler(&transmission_config.rpc));
+                    handler = handler.branch(transmission::get_update_handler(&transmission_config.rpc));
+                    help_text += transmission::get_short_help().as_str();
+                    help_text += "\n";
                 } else {
                     panic!("Transmission Config is not present");
                 }
             } else if plugin == "docker"{
                 if let Some(ref docker_config) = config.docker {
-                    handler = handler.branch(docker::get_docker_update_handler(&docker_config.mode, &docker_config.path.clone().unwrap_or_default()));
+                    handler = handler.branch(docker::get_update_handler(&docker_config.mode, &docker_config.path.clone().unwrap_or_default()));
+                    help_text += docker::get_short_help().as_str();
+                    help_text += "\n";
                 } else {
                     panic!("Transmission Config is not present");
                 }
@@ -90,6 +109,13 @@ async fn main() {
         }
         enabled_plugin.push(plugin);
     }
+
+    let help_closure = move |bot: Bot, msg: Message|{
+        show_help(bot, msg, help_text.clone())
+    };
+
+    handler = handler.branch(dptree::entry().filter_command::<Command>().endpoint(help_closure));
+
 
     Dispatcher::builder(bot, handler)
     .default_handler(|upd| async move {
@@ -102,4 +128,9 @@ async fn main() {
     .build()
     .dispatch()
     .await;
+}
+
+async fn show_help(bot: Bot, msg: Message, help_text: String )-> ResponseResult<()>{
+    bot.send_message(msg.chat.id, help_text).await?;
+    Ok(())
 }

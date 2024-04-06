@@ -14,10 +14,14 @@ extern crate mime;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
 enum Command{
-    Torrents (String)
+    Transmission (String)
 }
 
-pub fn get_torrent_update_handler(url: &String) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription>{
+pub fn get_short_help()-> String{
+    return "Transsmision plugin. Usage /transmission [mode]. For detail help /transmission help".to_string();
+}
+
+pub fn get_update_handler(url: &String) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription>{
     let url_clone1 = url.to_owned();
     let url_clone2 = url.to_owned();
 
@@ -96,7 +100,7 @@ async fn command_handler(
 ) -> ResponseResult<()>{
         let mut client = TransClient::new(url.parse().unwrap());
         match cmd {
-            Command::Torrents(command) => {
+            Command::Transmission(command) => {
                 let com: Vec<&str> = command.trim().split(" ").collect();
                 if com[0] == "" || com[0] == "list"{
                     bot.send_message(msg.chat.id, list_torrent(&mut client).await).await?;
@@ -128,6 +132,8 @@ async fn command_handler(
                     } else {
                         bot.send_message(msg.chat.id, "Please provide 2 parameters (torrent id, with_data (yes,no) )").await?;
                     }
+                } else if com[0] == "help"{
+                    bot.send_message(msg.chat.id, get_command_handler_help_text()).await?;
                 }
             }
         }
@@ -200,4 +206,38 @@ async fn remove_torrent(client: &mut TransClient, id: i64, with_data: bool) -> S
     },
         Err(x) => format!("Removed with err: {}", x)
     }
+}
+
+fn get_command_handler_help_text() -> String {
+    let help_text = r#"
+Torrents Command Usage:
+
+/torrents [subcommand] [arguments]
+
+Available Subcommands:
+
+list or "" (empty)
+  Lists all torrents in the client.
+
+stop [torrent_id]
+  Stops (pauses) the torrent with the specified ID.
+  Example: /torrents stop 1234
+
+start [torrent_id]
+  Starts (resumes) the torrent with the specified ID.
+  Example: /torrents start 5678
+
+remove [torrent_id] [with_data]
+  Removes the torrent with the specified ID from the client.
+  The 'with_data' argument can be 'yes' or 'no' (or 'y' or 'n') to specify whether to delete the downloaded data or not.
+  Example: /torrents remove 9012 no
+
+If no subcommand is provided or an invalid subcommand is given, the command will list all torrents by default.
+
+Just drop .torrent file to start downloading it.
+
+Note: Replace [torrent_id] with the actual ID of the torrent you want to operate on.
+"#.to_string();
+
+    help_text
 }

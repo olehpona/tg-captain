@@ -12,6 +12,19 @@ enum Command{
     Docker (String)
 }
 
+pub fn get_short_help()-> String{
+    return "Docker plugin. Usage /docekr [mode]. For detail help /docker help".to_string();
+}
+
+pub fn get_update_handler(mode:&String, value: &String) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription>{
+    let docker = get_docker(mode, value);
+    let command_closure = move |bot, msg, cmd| {
+        command_handler(bot, msg, cmd, docker.clone())
+    };
+    Update::filter_message()
+    .branch(dptree::entry().filter_command::<Command>().endpoint(command_closure))
+}
+
 fn get_docker(mode: &String, value: &String) -> Docker{
     if mode == "default"{
         Docker::connect_with_local_defaults().unwrap()
@@ -22,16 +35,6 @@ fn get_docker(mode: &String, value: &String) -> Docker{
     } else {
         Docker::connect_with_local_defaults().unwrap()
     }
-}
-
-
-pub fn get_docker_update_handler(mode:&String, value: &String) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription>{
-    let docker = get_docker(mode, value);
-    let command_closure = move |bot, msg, cmd| {
-        command_handler(bot, msg, cmd, docker.clone())
-    };
-    Update::filter_message()
-    .branch(dptree::entry().filter_command::<Command>().endpoint(command_closure))
 }
 
 async fn command_handler(
@@ -52,9 +55,11 @@ async fn command_handler(
                 network_command_handler(&bot, &msg, &com, &docker).await?;
             } else if com[0] == "volume"{
                 volumes_command_handler(&bot, &msg, &com, &docker).await?;
+            } else if com[0] == "help"{
+                bot.send_message(msg.chat.id, get_docker_command_help_text()).await?;
             } else {
-                bot.send_message(msg.chat.id, "Command not found").await?;
-            }
+                bot.send_message(msg.chat.id, get_docker_command_help_text()).await?;
+            } 
         }
     }
     Ok(())
@@ -506,4 +511,55 @@ async fn prune_volumes(docker: &Docker) -> String{
         Ok(data) => format!("Pruned successfully\nRemoved: {:?}\nFree up space: {}", data.volumes_deleted.unwrap_or_default(), data.space_reclaimed.unwrap_or_default()),
         Err(x) => format!("Failed with err: {x}")
     }
+}
+
+fn get_docker_command_help_text() -> String {
+    let help_text = r#"
+Docker Command Usage:
+
+/docker [subcommand] [arguments]
+
+Available Subcommands:
+
+info or "" (empty)
+  Displays information about the Docker installation.
+
+container [sub-subcommand] [arguments]
+  Manages Docker containers.
+  Sub-subcommands:
+    list or ""                  - Lists all containers
+    detail or det [name]        - Shows details of a container
+    stop [name]                 - Stops a container
+    start [name]                - Starts a container
+    pause [name]                - Pauses a container
+    unpause [name]              - Unpauses a container
+    kill [name]                 - Kills a container
+    restart [name]              - Restarts a container
+    rename [old] [new]          - Renames a container
+    prune                       - Removes all stopped containers
+
+image [sub-subcommand] [arguments]
+  Manages Docker images.
+  Sub-subcommands:
+    list                        - Lists all images
+    prune                       - Removes unused images
+
+network [sub-subcommand] [arguments]
+  Manages Docker networks.
+  Sub-subcommands:
+    list                        - Lists all networks
+    prune                       - Removes unused networks
+
+volume [sub-subcommand] [arguments]
+  Manages Docker volumes.
+  Sub-subcommands:
+    list                        - Lists all volumes
+    prune                       - Removes unused volumes
+
+If no subcommand is provided or an invalid subcommand is given, the default behavior is to display the Docker information.
+
+Note: Replace [name], [old], and [new] with the actual names/identifiers of the Docker resources you want to manage.
+"#.to_string();
+
+    help_text
 }

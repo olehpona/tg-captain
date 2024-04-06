@@ -12,9 +12,24 @@ use httping::ping;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
 enum Command{
-    Info(String)
+    Sys(String)
 }
 
+pub fn get_short_help()-> String{
+    return "Sys plugin. Usage /sys [mode]. For detail help /sys help".to_string();
+}
+
+pub fn get_update_handler(host_info: HashMap<String, String>) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription> {
+    let answer_closure = move |bot, msg, cmd| {
+        answer(bot, msg, cmd, host_info.clone())
+    };
+    Update::filter_message()
+        .branch(
+            dptree::entry()
+                .filter_command::<Command>()
+                .endpoint(answer_closure),
+        )
+}
 
 async fn answer(
     bot: Bot,
@@ -22,7 +37,7 @@ async fn answer(
     cmd: Command,
     host_info: HashMap<String, String>) -> ResponseResult<()> {
     match cmd {
-        Command::Info(mode) => {
+        Command::Sys(mode) => {
             if mode == "system" || mode == ""{
                 bot.send_message(msg.chat.id, get_system_info().await).await?;
             } else if mode =="net" || mode == "network"{
@@ -34,6 +49,16 @@ async fn answer(
                 bot.send_message(msg.chat.id, get_host_info(host_info).await).await?;
             } else if mode == "temp"{
                 bot.send_message(msg.chat.id, get_temp_info()).await?;
+            } else if mode == "shutdown"{
+                bot.send_message(msg.chat.id, shutdown()).await?;
+            } else if mode == "reboot"{
+                bot.send_message(msg.chat.id, reboot()).await?;
+            } else if mode == "sleep"{
+                bot.send_message(msg.chat.id, sleep()).await?;
+            } else if mode == "hibernate"{
+                bot.send_message(msg.chat.id, hibernate()).await?;
+            } else if mode == "help"{
+                bot.send_message(msg.chat.id, get_info_help_text()).await?;
             }
         }
     }
@@ -106,15 +131,73 @@ fn get_temp_info() -> String{
     }
 }
 
+fn shutdown() -> String {
+    match system_shutdown::shutdown() {
+        Ok(_) => "Shutting down".to_string(),
+        Err(error) => format!("Failed to shut down: {}", error),
+    }
+}
 
-pub fn get_sys_update_handler(host_info: HashMap<String, String>) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription> {
-    let answer_closure = move |bot, msg, cmd| {
-        answer(bot, msg, cmd, host_info.clone())
-    };
-    Update::filter_message()
-        .branch(
-            dptree::entry()
-                .filter_command::<Command>()
-                .endpoint(answer_closure),
-        )
+fn reboot() -> String {
+    match system_shutdown::reboot() {
+        Ok(_) => "Rebooting".to_string(),
+        Err(error) => format!("Failed to reboot: {}", error),
+    }
+}
+
+fn sleep() -> String {
+    match system_shutdown::sleep() {
+        Ok(_) => "Switching to sleep mode".to_string(),
+        Err(error) => format!("Failed to sleep: {}", error),
+    }
+}
+
+fn hibernate() -> String {
+    match system_shutdown::hibernate() {
+        Ok(_) => "Hibernating".to_string(),
+        Err(error) => format!("Failed to hibernate: {}", error),
+    }
+}
+
+fn get_info_help_text() -> String {
+    let help_text = r#"
+Info Command Usage:
+
+/sys [mode]
+
+Available Modes:
+
+system or "" (empty)
+  Displays system information such as CPU, memory, and operating system details.
+
+net or network
+  Shows network information, including active network interfaces and their configurations.
+
+disk or mount
+  Provides information about mounted disk partitions, file systems, and disk usage.
+
+ping
+  Fetches and displays the host information, which may include details like hostname, IP address, etc.
+
+temp
+  Retrieves and shows the current temperature readings for the system.
+
+shutdown
+  Initiates a system shutdown process.
+
+reboot
+  Reboots the system.
+
+sleep
+  Puts the system into sleep mode.
+
+hibernate
+  Hibernates the system.
+
+If no mode is specified or an invalid mode is provided, the command will display the system information by default.
+
+Note: The 'shutdown', 'reboot', 'sleep', and 'hibernate' modes require appropriate permissions to execute successfully.
+"#.to_string();
+
+    help_text
 }
