@@ -125,7 +125,7 @@ fn get_temp_info() -> String{
         temps += format!("{component:?}\n").as_str();
     }
     if temps == ""{
-        return "No data".to_string();
+        return "N/A".to_string();
     } else {
         return temps;
     }

@@ -14,6 +14,8 @@ mod docker;
 #[derive(Deserialize, Debug)]
 struct Config {
     token: String,
+    security: bool,
+    admins: Option<Vec<u64>>,
     plugins: Vec<String>,
     sys: Option<Sys>,
     docker: Option<Docker>,
@@ -34,6 +36,11 @@ struct Transmission {
 #[derive(Deserialize, Debug)]
 struct Sys {
     ping: HashMap<String, String>,
+}
+
+#[derive(Clone)]
+struct SecurityParameters {
+    admins: Vec<UserId>,
 }
 
 #[derive(BotCommands, Clone)]
@@ -71,17 +78,18 @@ async fn main() {
 
     let bot = Bot::new(config.token);
     
+    let mut plugin_handler = Update::filter_message();
+
     let mut enabled_plugin: Vec<String> = Vec::new();
     let mut help_text = "TG-CAPTAIN help\n\n".to_string();
-    
-    let mut handler = Update::filter_message();
+
     for plugin in config.plugins{
         if enabled_plugin.contains(&plugin){
             println!("Plugin {} is alredy enabled", plugin);
         } else {
             if plugin == "sys"{
                 if let Some(ref sys_config) = config.sys {
-                    handler = handler.branch(system::get_update_handler(sys_config.ping.clone()));
+                    plugin_handler = plugin_handler.branch(system::get_update_handler(sys_config.ping.clone()));
                     help_text += system::get_short_help().as_str();
                     help_text += "\n";
                 } else {
@@ -89,7 +97,7 @@ async fn main() {
                 }
             } else if plugin == "transmission"{
                 if let Some(ref transmission_config) = config.transmission {
-                    handler = handler.branch(transmission::get_update_handler(&transmission_config.rpc));
+                    plugin_handler = plugin_handler.branch(transmission::get_update_handler(&transmission_config.rpc));
                     help_text += transmission::get_short_help().as_str();
                     help_text += "\n";
                 } else {
@@ -97,7 +105,7 @@ async fn main() {
                 }
             } else if plugin == "docker"{
                 if let Some(ref docker_config) = config.docker {
-                    handler = handler.branch(docker::get_update_handler(&docker_config.mode, &docker_config.path.clone().unwrap_or_default()));
+                    plugin_handler = plugin_handler.branch(docker::get_update_handler(&docker_config.mode, &docker_config.path.clone().unwrap_or_default()));
                     help_text += docker::get_short_help().as_str();
                     help_text += "\n";
                 } else {
@@ -113,11 +121,32 @@ async fn main() {
     let help_closure = move |bot: Bot, msg: Message|{
         show_help(bot, msg, help_text.clone())
     };
+    plugin_handler = plugin_handler.branch(dptree::entry().filter_command::<Command>().endpoint(help_closure));
 
-    handler = handler.branch(dptree::entry().filter_command::<Command>().endpoint(help_closure));
+    let mut handler = Update::filter_message();
 
+    let mut admins_data: Vec<UserId> = Vec::new();
+
+    if config.security{
+        match config.admins{
+            Some(data) => admins_data = data.iter().map(|id| UserId(id.to_owned())).collect(),
+            None => panic!("Security activated but no admins provided!")
+        }
+        handler = handler.branch(dptree::filter(|cfg: SecurityParameters, msg: Message| {
+            if let Some(user) = msg.from() {
+                cfg.admins.contains(&user.id)
+            } else {
+                false
+            }
+        }).branch(plugin_handler))
+    }
+
+    let security_parameters = SecurityParameters{
+        admins: admins_data
+    };
 
     Dispatcher::builder(bot, handler)
+    .dependencies(dptree::deps![security_parameters])
     .default_handler(|upd| async move {
         log::warn!("Unhandled update: {:?}", upd);
     })

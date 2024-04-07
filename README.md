@@ -1,6 +1,6 @@
 # Tg-captain
 
-Tg-captain is simple telgram bot created for get system info and manage your server at any point in the world with telegram.
+Tg-captain is simple teloxide bot created for get system info and manage your server at any point in the world with telegram.
 
 ## Plugins
 
@@ -17,6 +17,8 @@ Tg-captain parse yaml file as a config with that structure
 
 ```
 token: <Your telegram bot token>
+security: true # set true or false if you want to filter users
+admins: [<chat-id>] # list of users that will be allowed to work with tg-captain
 plugins: ["docker", "transmission", "sys"] #list of plugins that will be enabled
 sys: #only used when sys plugin enabled
   ping:
@@ -48,4 +50,17 @@ services:
     volumes:
       - <path to docker sock (default is /var/run/docker.sock)>:/var/run/docker.sock:ro # should be set when using unix mode in docker plugin config
       - <path to your config.yml>:/data/config/config.yml:ro
+```
+
+Or if you want set tg-captain as servise there is systemd service example
+
+```
+Description=Tg captain
+After=network.target
+
+[Service]
+ExecStart=<path to tg-captain> <path to config>
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
 ```
