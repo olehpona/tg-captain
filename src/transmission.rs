@@ -172,7 +172,7 @@ async fn pause_torrent(client: &mut TransClient, id: i64) -> String{
                 return "Pause failed".to_string();
             }
         },
-        Err(x) => format!("Paus failed with err: {}", x)
+        Err(x) => format!("Pause failed with err: {}", x)
     }
 }
 
@@ -210,9 +210,9 @@ async fn remove_torrent(client: &mut TransClient, id: i64, with_data: bool) -> S
 
 fn get_command_handler_help_text() -> String {
     let help_text = r#"
-Torrents Command Usage:
+Transmission Command Usage:
 
-/torrents [subcommand] [arguments]
+/transmission [subcommand] [arguments]
 
 Available Subcommands:
 
@@ -221,16 +221,16 @@ list or "" (empty)
 
 stop [torrent_id]
   Stops (pauses) the torrent with the specified ID.
-  Example: /torrents stop 1234
+  Example: /transmission stop 1234
 
 start [torrent_id]
   Starts (resumes) the torrent with the specified ID.
-  Example: /torrents start 5678
+  Example: /transmission start 5678
 
 remove [torrent_id] [with_data]
   Removes the torrent with the specified ID from the client.
   The 'with_data' argument can be 'yes' or 'no' (or 'y' or 'n') to specify whether to delete the downloaded data or not.
-  Example: /torrents remove 9012 no
+  Example: /transmission remove 9012 no
 
 If no subcommand is provided or an invalid subcommand is given, the command will list all torrents by default.
 
