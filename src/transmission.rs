@@ -125,7 +125,7 @@ async fn command_handler(
                             "yes" => true,
                             "no" => false,
                             "n" => false,
-                            "y" => false,
+                            "y" => true,
                             _ => false
                         };
                         bot.send_message(msg.chat.id, remove_torrent(&mut client, com[1].parse().unwrap(), with_data).await).await?;
