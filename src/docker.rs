@@ -13,7 +13,7 @@ enum Command{
 }
 
 pub fn get_short_help()-> String{
-    return "Docker plugin. Usage /docekr [mode]. For detail help /docker help".to_string();
+    return "Docker plugin. Usage /docker [mode]. For detail help /docker help".to_string();
 }
 
 pub fn get_update_handler(mode:&String, value: &String) -> Handler<'static, DependencyMap, Result<(), RequestError>, DpHandlerDescription>{
